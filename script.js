@@ -940,5 +940,26 @@ function init() {
   // 메인 게임 루프
   setInterval(tickClock, 1000);
 }
+(() => {
+  const prefix = '#fruitstock-save=';
+  if (!location.hash.startsWith(prefix)) return;
+
+  try {
+    const encoded = location.hash.slice(prefix.length)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+    const raw = decodeURIComponent(escape(atob(encoded)));
+    const data = JSON.parse(raw);
+
+    if (typeof data.cash !== 'number' || !data.holdings || !Array.isArray(data.stocks)) {
+      throw new Error('잘못된 저장 데이터');
+    }
+
+    localStorage.setItem('stockSimulatorSave', raw);
+    history.replaceState(null, '', location.pathname + location.search);
+  } catch (error) {
+    console.warn('공유 저장값을 읽지 못했습니다.', error);
+  }
+})();
 
 init();
