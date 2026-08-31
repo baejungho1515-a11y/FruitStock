@@ -941,4 +941,73 @@ function init() {
   setInterval(tickClock, 1000);
 }
 
+/* ===== FruitStock 컴퓨터 ↔ 휴대폰 저장 공유 ===== */
+(function installFruitStockShare() {
+  const prefix = '#fruitstock-save=';
+
+  // 휴대폰에서 공유 링크를 열었을 때 저장값을 먼저 복원
+  if (location.hash.startsWith(prefix)) {
+    try {
+      const encoded = location.hash.slice(prefix.length)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+      const raw = decodeURIComponent(escape(atob(encoded)));
+      const data = JSON.parse(raw);
+
+      if (typeof data.cash !== 'number' || !data.holdings || !Array.isArray(data.stocks)) {
+        throw new Error('잘못된 저장 데이터');
+      }
+
+      localStorage.setItem('stockSimulatorSave', raw);
+      history.replaceState(null, '', location.pathname + location.search);
+    } catch (error) {
+      console.warn('FruitStock 공유 저장값을 읽지 못했습니다.', error);
+    }
+  }
+
+  // 화면에 공유 버튼 추가
+  window.addEventListener('load', () => {
+    if (document.getElementById('fruitstock-share-button')) return;
+
+    const button = document.createElement('button');
+    button.id = 'fruitstock-share-button';
+    button.textContent = '📱 폰으로 공유';
+    button.style.cssText = [
+      'position:fixed', 'right:20px', 'bottom:20px', 'z-index:9999',
+      'padding:12px 16px', 'border:0', 'border-radius:12px',
+      'background:#f5c84b', 'color:#171717', 'font-weight:700',
+      'font-size:14px', 'cursor:pointer', 'box-shadow:0 5px 18px #0006'
+    ].join(';');
+
+    button.addEventListener('click', async () => {
+      if (typeof saveGame === 'function') saveGame();
+
+      const raw = localStorage.getItem('stockSimulatorSave');
+      if (!raw) {
+        alert('먼저 게임을 한 번 플레이해 주세요.');
+        return;
+      }
+
+      try {
+        JSON.parse(raw);
+        const encoded = btoa(unescape(encodeURIComponent(raw)))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+        const shareUrl = location.origin + location.pathname + prefix + encoded;
+
+        await navigator.clipboard.writeText(shareUrl);
+        alert('공유 링크를 복사했습니다. 휴대폰으로 보내서 열어 주세요.');
+        console.log('FruitStock 공유 링크:', shareUrl);
+      } catch (error) {
+        console.error('공유 링크 생성 실패:', error);
+        alert('링크 생성에 실패했습니다. HTTPS 페이지에서 다시 시도해 주세요.');
+      }
+    });
+
+    document.body.appendChild(button);
+  });
+})();
+
+/* 기존 코드의 마지막 줄 */
 init();
