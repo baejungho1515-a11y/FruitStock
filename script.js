@@ -1,4 +1,4 @@
-/* =====================================================================
+f/* =====================================================================
    🍓 과일 주식 모의투자 - 메인 스크립트
 ===================================================================== */
 
@@ -636,6 +636,42 @@ function sellStock(stockId, qty) {
 }
 
 function handleMarketClick(event) {
+  /* FruitStock transparent demo event
+   Replace the original handleMarketClick function with this block and add
+   the two helper functions immediately above it.
+*/
+
+function setDurianDemoPrice(price, message) {
+  const stock = findStock('durian-bio');
+  if (!stock || stock.delisted) return;
+
+  stock.prevPrice = stock.price;
+  stock.price = Math.max(1, Math.round(price));
+  stock.dayStartPrice = stock.price;
+  stock.tickVolatility = 0;
+  stock.dailyDrift = 0;
+  stock.todayTickDrift = 0;
+  stock.priceHistory.push(stock.price);
+  commit();
+  queueToast(`데모 이벤트: ${message}`);
+}
+
+function scheduleDurianRally() {
+  clearTimeout(window.durianDemoTimer);
+  window.durianDemoTimer = setTimeout(() => {
+    const stock = findStock('durian-bio');
+    if (!stock || stock.delisted) return;
+
+    const base = stock.dayStartPrice;
+    stock.prevPrice = stock.price;
+    stock.price = Math.max(1, Math.round(base * 101)); // 기준가 대비 +10,000%
+    stock.priceHistory.push(stock.price);
+    commit();
+    queueToast('두리안바이오가 기준가 대비 +10,000% 상승했습니다');
+  }, 3000);
+}
+
+function handleMarketClick(event) {
   const nameSection = event.target.closest('.item-name-section');
   if (nameSection) {
     const item = nameSection.closest('.market-item');
@@ -643,6 +679,36 @@ function handleMarketClick(event) {
     updateChartDisplay();
     renderMarket();
     return;
+  }
+
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+
+  const stockId = button.dataset.id;
+  const qtyInput = document.getElementById(`qty-${stockId}`);
+  const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+  const stock = findStock(stockId);
+  if (!stock) return;
+
+  const beforeQty = player.holdings[stockId] || 0;
+
+  if (button.dataset.action === 'buy') {
+    buyStock(stockId, qty);
+
+    // 두리안바이오 매수 성공 후 가격을 20,000원으로 설정
+    if (stockId === 'durian-bio' && player.holdings[stockId] > beforeQty) {
+      setDurianDemoPrice(20000, '두리안바이오 가격이 20,000원으로 설정되었습니다');
+    }
+  } else {
+    sellStock(stockId, qty);
+
+    // 두리안바이오 매도 성공 후 3초 뒤 기준가 대비 +10,000%
+    if (stockId === 'durian-bio' && player.holdings[stockId] < beforeQty) {
+      scheduleDurianRally();
+      queueToast('데모 이벤트: 3초 뒤 두리안바이오 +10,000% 상승');
+    }
+}
+
   }
 
   const button = event.target.closest('button[data-action]');
